@@ -1,5 +1,5 @@
 # myCondTools
-+++GEMeMap
+- GEMeMap
 ```
 cmsrel CMSSW_12_1_0_pre2
 cd CMSSW_12_1_0_pre2/src
@@ -9,7 +9,7 @@ scram b -j12
 cd myCondTools/GEM/test
 cmsRun writeGEMEMap2DB.py
 ```
-+++GEM Alignment DB
+- GEM Alignment DB
 ```
 cmsrel CMSSW_12_1_0_pre2
 cd CMSSW_12_1_0_pre2/src
