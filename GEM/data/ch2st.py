@@ -42,6 +42,6 @@ def getStrip(region, station, chamber, layer, vfatAdd, channel):
   vfatType, iEta, iPhi = vfatMap[region, station, chamber, layer, vfatAdd]
   iStrip = chStMap[vfatType, channel]
   rawId = rawIdMap[region, station, chamber, layer, iEta]
-  return rawId, iStrip + iPhi*maxChNum
+  return rawId, iEta, iStrip + iPhi*maxChNum
  
 print(getStrip(1,1,1,1,23,18)) 
