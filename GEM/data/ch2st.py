@@ -43,5 +43,20 @@ def getStrip(region, station, chamber, layer, vfatAdd, channel):
   iStrip = chStMap[vfatType, channel]
   rawId = rawIdMap[region, station, chamber, layer, iEta]
   return rawId, iEta, iStrip + iPhi*maxChNum
- 
-print(getStrip(1,1,1,1,23,18)) 
+
+sCurvesFileName = "minus_20211029.csv"
+sCurves = csv.reader(open(sCurvesFileName))
+outCSV = open(sCurvesFileName.replace(".csv", "_reprocess.csv"),'w')
+wr = csv.writer(outCSV)
+outL = []
+for i in sCurves:
+  if i[0].startswith("detName"): 
+    wr.writerow(i) 
+    continue
+  detTmp = i[0].split("-")
+  strip = getStrip(-1 if detTmp[1] == "M" else 1, 1, int(detTmp[2].split("L")[0]), int(detTmp[2].split("L")[1]), int(float(i[1])), float(i[2]))
+  outL.append([i[0], i[1], i[2], strip[2], i[4], i[5]])
+
+for i in outL:
+  wr.writerow(i)
+outCSV.close()
