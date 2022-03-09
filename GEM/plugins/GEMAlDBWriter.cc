@@ -170,8 +170,9 @@ void GEMAlDBWriter::analyze(const edm::Event& event, const edm::EventSetup& even
     }
     for (const auto& chamber : CSCChambers) {
       auto cscId = chamber->id();
-      //if (alPar.count(cscId) < 1)
+      if (alPar.count(cscId) < 1)
         //throw cms::Exception("NotAvailable") << "can't find detId " << GEMDetId(gemId) ;
+        continue;
       auto par = alPar[cscId];
       std::cout << cscId << ": "<< par.at(0) << ", " << par.at(1) << ", " << par.at(2) << ", " << par.at(3) << ", " << par.at(4) << ", " << par.at(5) << std::endl;
       theMuonModifier.moveAlignableLocal(chamber, false, false, par.at(0), par.at(1), par.at(2));
