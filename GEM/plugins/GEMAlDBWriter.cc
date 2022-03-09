@@ -31,11 +31,11 @@ public:
   void analyze(const edm::Event&, const edm::EventSetup&) override;
 
 private:
-  const std::string chamberFile, endcapFile;
+  const std::string chamberFile, endcapFile, ME11ChamberFile, CSCEndcapFile;
   std::string theDTAlignRecordName, theDTErrorRecordName;
   std::string theCSCAlignRecordName, theCSCErrorRecordName;
   std::string theGEMAlignRecordName, theGEMErrorRecordName;
-  const bool doChamber, doEndcap;
+  const bool doChamber, doEndcap, doME11Chamber, doCSCEndcap;
   edm::ESGetToken<DTGeometry, MuonGeometryRecord> esTokenDT_;
   edm::ESGetToken<CSCGeometry, MuonGeometryRecord> esTokenCSC_;
   edm::ESGetToken<GEMGeometry, MuonGeometryRecord> esTokenGEM_;
@@ -52,6 +52,8 @@ private:
 GEMAlDBWriter::GEMAlDBWriter(const edm::ParameterSet& p)
   : chamberFile(p.getUntrackedParameter<std::string>("chamberFile")),
     endcapFile(p.getUntrackedParameter<std::string>("endcapFile")),
+    ME11ChamberFile(p.getUntrackedParameter<std::string>("ME11ChamberFile")),
+    CSCEndcapFile(p.getUntrackedParameter<std::string>("CSCEndcapFile")),
     theDTAlignRecordName("DTAlignmentRcd"),
     theDTErrorRecordName("DTAlignmentErrorExtendedRcd"),
     theCSCAlignRecordName("CSCAlignmentRcd"),
@@ -60,6 +62,8 @@ GEMAlDBWriter::GEMAlDBWriter(const edm::ParameterSet& p)
     theGEMErrorRecordName("GEMAlignmentErrorExtendedRcd"),
     doChamber(p.getUntrackedParameter<bool>("doChamber")),
     doEndcap(p.getUntrackedParameter<bool>("doEndcap")),
+    doME11Chamber(p.getUntrackedParameter<bool>("doME11Chamber")),
+    doCSCEndcap(p.getUntrackedParameter<bool>("doCSCEndcap")),
     esTokenDT_(esConsumes(edm::ESInputTag("", "idealForMuonMisalignedProducer"))),
     esTokenCSC_(esConsumes(edm::ESInputTag("", "idealForMuonMisalignedProducer"))),
     esTokenGEM_(esConsumes(edm::ESInputTag("", "idealForMuonMisalignedProducer"))) {}
@@ -74,8 +78,8 @@ void GEMAlDBWriter::analyze(const edm::Event& event, const edm::EventSetup& even
   theAlignableMuon = dynamic_cast<AlignableMuon*>(theAlignableMuon);
   if (!theAlignableMuon)
     throw cms::Exception("TypeMismatch") << "Argument is not an AlignableMuon";
-  const auto& GEMSuperChambers = theAlignableMuon->GEMSuperChambers();
   if (doChamber) {
+    const auto& GEMSuperChambers = theAlignableMuon->GEMSuperChambers();
     int detNum, endcap;
     std::string line, DetNum, dx, dy, dz, dphix, dphiy, dphiz;
     std::ifstream maptype(chamberFile);
@@ -130,6 +134,66 @@ void GEMAlDBWriter::analyze(const edm::Event& event, const edm::EventSetup& even
       float yShift = (float)atof(dy.c_str());
       r = (detNum < 0) ? 0 : 1;
       theMuonModifier.moveAlignable(GEMendcaps[r], false, false, xShift, yShift, 0.0);
+    }
+  }
+  if (doME11Chamber) {
+    const auto& CSCChambers = theAlignableMuon->CSCChambers();
+    int detNum, endcap;
+    std::string line, DetNum, dx, dy, dz, dphix, dphiy, dphiz;
+    std::ifstream maptype(ME11ChamberFile);
+    std::map<CSCDetId, std::vector<float>> alPar;
+    while(std::getline(maptype, line)){
+      std::cout << line << std::endl;
+      std::stringstream ssline(line);
+      getline(ssline, DetNum, ',');
+      getline(ssline, dx, ',');
+      getline(ssline, dy, ',');
+      getline(ssline, dz, ',');
+      getline(ssline, dphix, ',');
+      getline(ssline, dphiy, ',');
+      getline(ssline, dphiz, ',');
+      detNum = (float)atof(DetNum.c_str());
+      float xShift = (float)atof(dx.c_str());
+      float yShift = (float)atof(dy.c_str());
+      float zShift = (float)atof(dz.c_str());
+      float rotX = (float)atof(dphix.c_str());
+      float rotY = (float)atof(dphiy.c_str());
+      float rotZ = (float)atof(dphiz.c_str());
+      endcap = (detNum > 0) ? 1 : 2;
+      std::cout << "endcap is " << endcap << std::endl;
+      CSCDetId id = CSCDetId(endcap, 1, 1, abs(detNum%100), 0);
+      CSCDetId id2 = CSCDetId(endcap, 1, 4, abs(detNum%100), 0);
+      std::vector<float> tmp = {xShift, yShift, zShift, rotX, rotY, rotZ};
+      alPar[id.rawId()] = tmp;
+      alPar[id2.rawId()] = tmp;
+      std::cout << "detNum:" << detNum << " rawId: " << id.rawId()<<  " xShift:" << xShift << " yShift:" << yShift << " zShift:" << zShift << " rotX:" << rotX << " rotY:" << rotY << " rotZ:" << rotZ << std::endl;
+    }
+    for (const auto& chamber : CSCChambers) {
+      auto cscId = chamber->id();
+      //if (alPar.count(cscId) < 1)
+        //throw cms::Exception("NotAvailable") << "can't find detId " << GEMDetId(gemId) ;
+      auto par = alPar[cscId];
+      std::cout << cscId << ": "<< par.at(0) << ", " << par.at(1) << ", " << par.at(2) << ", " << par.at(3) << ", " << par.at(4) << ", " << par.at(5) << std::endl;
+      theMuonModifier.moveAlignableLocal(chamber, false, false, par.at(0), par.at(1), par.at(2));
+      theMuonModifier.rotateAlignableLocal(chamber, false, false, par.at(3), par.at(4), par.at(5));
+    }
+  }
+  if (doCSCEndcap){
+    const auto& CSCendcaps = theAlignableMuon->CSCEndcaps();
+    int r, detNum;
+    std::string line, DetNum, dx, dy;
+    std::ifstream maptype(CSCEndcapFile);
+    while(std::getline(maptype, line)){
+      std::cout << line << std::endl;
+      std::stringstream ssline(line);
+      getline(ssline, DetNum, ',');
+      getline(ssline, dx, ',');
+      getline(ssline, dy, ',');
+      detNum = (float)atof(DetNum.c_str());
+      float xShift = (float)atof(dx.c_str());
+      float yShift = (float)atof(dy.c_str());
+      r = (detNum < 0) ? 1 : 0;
+      theMuonModifier.moveAlignable(CSCendcaps[r], false, false, xShift, yShift, 0.0);
     }
   }
   dt_Alignments = theAlignableMuon->dtAlignments();

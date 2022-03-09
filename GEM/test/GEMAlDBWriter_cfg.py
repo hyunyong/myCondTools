@@ -29,9 +29,13 @@ process.GEMGeometryMuonMisalignedProducer.applyAlignment = cms.bool(False)
 
 process.GEMAlDBWriter = cms.EDAnalyzer("GEMAlDBWriter",
                                        doChamber = cms.untracked.bool(False),
-                                       doEndcap = cms.untracked.bool(True),
+                                       doEndcap = cms.untracked.bool(False),
+                                       doME11Chamber = cms.untracked.bool(True),
+                                       doCSCEndcap = cms.untracked.bool(False),
                                        chamberFile = cms.untracked.string('gemAl.csv'),
                                        endcapFile = cms.untracked.string('GEMRing.csv')
+                                       ME11ChamberFile = cms.untracked.string('cscAl.csv'),
+                                       CSCEndcapFile = cms.untracked.string('cscEndcap.csv')
                                       )
 
 # Database output service if you want to store soemthing in MisalignedMuon
